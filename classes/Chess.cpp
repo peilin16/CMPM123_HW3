@@ -250,7 +250,7 @@ bool Chess::canBitMoveFromTo(Bit& bit, BitHolder& src, BitHolder& dst)
 // set the bit as correct movement
 void  Chess::bit_move(Bit &bit, int x, int y){
     if(bit.gameTag() == Pawn){
-        //bit._init_special = false;
+        bit._init_special = false;
         if(bit.getOwner()->playerNumber() == 0){
             if(y + 1< 8){
                 if(!_grid[y + 1][x].bit()){
