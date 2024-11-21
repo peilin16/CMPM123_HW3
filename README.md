@@ -137,4 +137,5 @@ This project is licensed under the MIT License.
 ## Chess Function
 
 - Crucial function
+-- setUpBoard :: print the board and initialize all values.
 - support function
