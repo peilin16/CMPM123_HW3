@@ -137,5 +137,13 @@ This project is licensed under the MIT License.
 ## Chess Function
 
 - Crucial function
--- setUpBoard :: print the board and initialize all values.
+- 1. setUpBoard: print the board and initialize all values.
+  2. canBitMoveFrom: distinguish the bit move is legal, if legal return true
+  3. bitMovedFromTo: move the bit can if bit captures another bit remove the capture's bit
+  4. bit_move: return the bit move and set the legal square as high line
+  5. setFENfromBoard: set the FEN string by board state
+  6. canBitMoveFrom get the bit position and set the available move as board
+  7. setFENfromBoard: set up the board by FEN string
+  8. undo: The undo function returns to the last move.
 - support function
+- 1.
