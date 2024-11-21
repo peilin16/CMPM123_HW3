@@ -90,7 +90,7 @@ void Game::startGame()
 void Game::endTurn()
 {
 	//_gameOptions.currentTurnNo++;
-	std::string startState = stateString();
+	//std::string startState = stateString();
 	Turn *turn = new Turn;
 	turn->_boardState = stateString();
 	turn->_date = (int)_gameOptions.currentTurnNo;
@@ -133,9 +133,9 @@ void Game::scanForMouse()
 				if (ImGui::IsMouseClicked(0) && entity && _winner == nullptr)
 				{
 					if(_gameOptions.gameNumber != 0){
-						if(_gameOptions.currentTurnNo == 1 && holder.bit()->getOwner()->playerNumber() == 0)
+						if(_gameOptions.currentTurnNo == 0 && holder.bit()->getOwner()->playerNumber() == 0)
 							mouseDown(mousePos, entity);
-						else if(_gameOptions.currentTurnNo == 2 && holder.bit()->getOwner()->playerNumber() == 1)
+						else if(_gameOptions.currentTurnNo == 1 && holder.bit()->getOwner()->playerNumber() == 1)
 							mouseDown(mousePos, entity);
 					}else{
 						mouseDown(mousePos, entity);
@@ -438,10 +438,10 @@ void Game::mouseUp(ImVec2 &location, Entity *entity)
 				
 
 				//set current turn
-				if(_gameOptions.currentTurnNo == 1){
-					_gameOptions.currentTurnNo = 2;
-				}else if (_gameOptions.currentTurnNo == 2){
+				if(_gameOptions.currentTurnNo == 0){
 					_gameOptions.currentTurnNo = 1;
+				}else if (_gameOptions.currentTurnNo == 1){
+					_gameOptions.currentTurnNo = 0;
 				}
 			}
 			else
