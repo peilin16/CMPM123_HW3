@@ -62,17 +62,17 @@ namespace ClassGame {
                 if(ImGui::IsItemClicked()){
                     resetGame();
                     game->_gameOptions.gameNumber = 1;
-                    game->_gameOptions.currentTurnNo = 1;
+                    game->_gameOptions.currentTurnNo = 0;
                    // game->startGame();
                 }
                 ImGui::SetCursorPos(ImVec2 (225, 540));
                 ImGui::Button("Player to AI");
                 ImGui::SetCursorPos(ImVec2 (335, 540));
-                ImGui::Button("Last Move");
+                ImGui::Button("Undo");
                 if(ImGui::IsItemClicked()){
-                    game->lastMove();
+                    game->undo();
                 }
-                ImGui::SetCursorPos(ImVec2 (430, 540));
+                ImGui::SetCursorPos(ImVec2 (400, 540));
                 ImGui::Button("Free Mode");
                 if(ImGui::IsItemClicked()){
                     resetGame();
@@ -87,6 +87,8 @@ namespace ClassGame {
                         game->_gameOptions.currentTurnNo = 1;
                     //game->startGame();
                 }
+                ImGui::Text(game->getFENstring().c_str());
+                ImGui::SetCursorPos(ImVec2 (55, 570));
                 ImGui::End();
         }
 
