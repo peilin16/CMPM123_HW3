@@ -133,3 +133,8 @@ This project is licensed under the MIT License.
 
 ---
 *This README is part of an educational project and is intended to serve as an example of good documentation practices.*
+
+## Chess Function
+
+- Crucial function
+- support function
