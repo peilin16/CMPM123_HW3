@@ -437,12 +437,7 @@ void Game::mouseUp(ImVec2 &location, Entity *entity)
 					_oldHolder->draggedBitTo(_dragBit, _dropTarget);
 				
 
-				//set current turn
-				if(_gameOptions.currentTurnNo == 0){
-					_gameOptions.currentTurnNo = 1;
-				}else if (_gameOptions.currentTurnNo == 1){
-					_gameOptions.currentTurnNo = 0;
-				}
+
 			}
 			else
 			{

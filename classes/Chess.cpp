@@ -190,7 +190,7 @@ void       Chess::FENtoBoard(bool is_first){
             }
 
         }else{
-            
+
 
         }
         //x++;
@@ -246,71 +246,73 @@ void     Chess::setFENfromBoard(){
     _currentState.w_K_Castling = false;
     _currentState.w_Q_Castling = false;
     //check Castling for white side
-    if(_grid[0][4].bit() && _grid[0][4].bit()->_init_special && _grid[0][7].bit() && _grid[0][7].bit()->_init_special){
+
+    if(_grid[0][4].bit() && _grid[0][4].bit()->_init_special ){
         //if(_grid[0][4].bit()->getOwner()->playerNumber() == _grid[0][7].bit()->getOwner()->playerNumber()){
         int p = _grid[0][4].bit()->getOwner()->playerNumber();
-
+        
         if(check_the_square_will_be_capture(0, 4,p)){
-            if(check_the_square_will_be_capture(0, 5,p ) && check_the_square_will_be_capture(0, 6,p ) ){
+            if( _grid[0][7].bit() && _grid[0][7].bit()->_init_special &&  check_the_square_will_be_capture(0, 5,p ) && check_the_square_will_be_capture(0, 6,p ) ){
                 fen_str += 'K';
                 _currentState.w_K_Castling = true;
             }
-            if(check_the_square_will_be_capture(0, 3,p ) && check_the_square_will_be_capture(0, 2,p )){
+            if(_grid[0][0].bit() && _grid[0][0].bit()->_init_special && check_the_square_will_be_capture(0, 3,p ) && check_the_square_will_be_capture(0, 2,p )){
                 fen_str += 'Q';
                 _currentState.w_Q_Castling = true;
             }
         }
+        
       //  }
     }
     _currentState.b_K_Castling = false;
     _currentState.b_Q_Castling = false;
     //check Castling for black side
-    if(_grid[7][4].bit() && _grid[7][4].bit()->_init_special && _grid[7][7].bit() && _grid[7][7].bit()->_init_special){
+    if(_grid[7][4].bit() && _grid[7][4].bit()->_init_special ){
         int p = _grid[7][4].bit()->getOwner()->playerNumber();
+        
         if(check_the_square_will_be_capture(7, 4,p)){
-            if(check_the_square_will_be_capture(7, 5,p) && check_the_square_will_be_capture(7, 6,p) ){
+            if(_grid[7][7].bit() && _grid[7][7].bit()->_init_special && check_the_square_will_be_capture(7, 5,p) && check_the_square_will_be_capture(7, 6,p) ){
                 fen_str += 'k';
                 _currentState.b_K_Castling = true;
             }
-            if(check_the_square_will_be_capture(7, 3,p) && check_the_square_will_be_capture(7, 2,p)){
+            if(_grid[7][0].bit() && _grid[7][0].bit()->_init_special && check_the_square_will_be_capture(7, 3,p) && check_the_square_will_be_capture(7, 2,p)){
                 fen_str += 'q';
                 _currentState.b_Q_Castling = true;
             }
         }
+        
+
     }
     if(!_currentState.w_K_Castling && !_currentState.w_Q_Castling && !_currentState.b_K_Castling && !_currentState.b_Q_Castling)
         fen_str += '-';
     fen_str += ' ';
     bool is_set = false;
-    for(size_t y = 0; y < 2; y++){
-        for (size_t x = 0; x < 8; x++)
-        {
-            if(_currentState.EnPassant[y][x]){
-                if(y == 0){
-                    if(!_grid[3][x].bit() || _grid[3][x].bit()->gameTag() != Pawn)
-                        _currentState.EnPassant[y][x] = false;
-                    else
-                    {
-                        is_set = true;
-                        fen_str += 'a' + x;
-                        fen_str += '3';
-                        fen_str += ' ';
-                    }
-                }else{
-                    if(!_grid[4][x].bit() || _grid[4][x].bit()->gameTag() != Pawn)
-                        _currentState.EnPassant[y][x] = false;
-                    else
-                    {
-                        is_set = true;
-                        fen_str += 'a' + x;
-                        fen_str += '5';
-                        fen_str += ' ';
-                    }
-                }
+
+    // remove en passant
+    if(_gameOptions.currentTurnNo == 0){
+        for (size_t x = 0; x < 8; x++){
+            _currentState.EnPassant[0][x] = false;
+            if(_currentState.EnPassant[1][x]){
+                is_set = true;
+                fen_str += 'a' + x;
+                fen_str += '3';
+                fen_str += ' ';
             }
         }
-        
+            
+    }else{
+        for (size_t x = 0; x < 8; x++){
+            _currentState.EnPassant[1][x] = false;
+            if(_currentState.EnPassant[0][x]){
+                is_set = true;
+                fen_str += 'a' + x;
+                fen_str += '5';
+                fen_str += ' ';
+            }
+        }
+            
     }
+    
     if(!is_set)
         fen_str += '-';
     if(_gameOptions.gameNumber == 0){
@@ -1049,13 +1051,13 @@ void Chess::bitMovedFromTo(Bit &bit, BitHolder &src, BitHolder &dst) {
     bit.moveTo(dst.getPosition());
     src.setBit(nullptr);
     
-
-    if(bit.getOwner()->playerNumber() == 0)
-        _gameOptions.currentTurnNo = 0;
-    else
-        _gameOptions.currentTurnNo = 1;
-    setFENfromBoard();
     endTurn();
+    if(_gameOptions.currentTurnNo == 0)
+        _gameOptions.currentTurnNo = 1;
+    else
+        _gameOptions.currentTurnNo = 0;
+    setFENfromBoard();
+    
 }
 // clear the highline and movepoint
 void  Chess::clearBoardHighlights(){
