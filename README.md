@@ -146,13 +146,13 @@ This project is licensed under the MIT License.
   7. setFENfromBoard: set up the board by FEN string
   8. undo: The undo function returns to the last move.
 - Support function
-- 1.drawCpatureGrid: draw the capture board as right side
-- 2.getFENstring: get FEN string
-- 3.getHolerrow: get the holer row by holer
-- 4. getHolerColumn: et holer column by holer
-- 5. check_square: check the square exits the bit or not set the square; it only be called by bit_move
-- 6. captureBit: capture the bit and move to right side board.
-- 7. clearBoard: clear board and destroy all bit
+  1.drawCpatureGrid: draw the capture board as right side
+  2.getFENstring: get FEN string
+  3.getHolerrow: get the holer row by holer
+  4. getHolerColumn: et holer column by holer
+  5. check_square: check the square exits the bit or not set the square; it only be called by bit_move
+  6. captureBit: capture the bit and move to right side board.
+  7. clearBoard: clear board and destroy all bit
   8. clearBoardHighlights: clear hightline.
   9. setStateString: set state string
   10. check_the_square_will_be_capture: check the square will be captured by an opponent.
