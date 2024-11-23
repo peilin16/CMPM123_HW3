@@ -163,20 +163,19 @@ This project is licensed under the MIT License.
 13. PieceForPlayer: return the player chess image by int
 14. setFEN: set FEN string by parameter
 15. bitToPieceNotation gets bit char from square
-- new struct
-- struct CurrentState{
- //FEN  String
-    std::string  FENstring; 
-     //Castling
-    bool w_K_Castling; 
-    bool w_Q_Castling;
-    bool b_Q_Castling;
-    bool b_K_Castling;
-  // En Passant record. first row white second row black
-    bool  EnPassant[2][8];
-  // move record(backup)
-    std::string	move;
-  //clock move path
-    int half_clock_move;
-    int clock_move;
-};
+## new struct
+- struct CurrentState:
+- FEN  String
+- std::string  FENstring; 
+- Castling:
+- bool w_K_Castling; 
+- bool w_Q_Castling;
+- bool b_Q_Castling;
+- bool b_K_Castling;
+- En Passant record. first row white second row black
+- bool  EnPassant[2][8];
+- move record(backup)
+- std::string	move;
+- clock move path
+- int half_clock_move;
+- int clock_move;
