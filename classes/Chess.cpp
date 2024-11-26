@@ -82,6 +82,7 @@ void Chess::setUpBoard()
             //player1_capture_grid[y][x].setNotation(piece);
         }
     }
+    _gameOptions.currentTurnNo = 0;
     //set up chess
     //player 0
     //setFEN("rnbqkbnr/pppppppp/8/8/8/8/PPPPPPPP/RNBQKBNR w KQkq - 0 1");
@@ -883,7 +884,7 @@ void         Chess::undo(){
         return;
     }
       
-    Turn* last_turn = _turns[_turns.size() - 2];
+    Turn* last_turn = _turns[_turns.size() - 1];
     clearBoard();
     setFEN(last_turn->_boardState);
     FENtoBoard();
@@ -920,7 +921,7 @@ void         Chess::undo(){
     _turns.pop_back();
     if(_gameOptions.currentTurnNo == 0)
         _gameOptions.currentTurnNo = 1;
-    else if(_gameOptions.currentTurnNo == 1)
+    else if(_gameOptions.currentTurnNo != 0)
         _gameOptions.currentTurnNo = 0;
 }
 // capture the bit and move to the rightside board
