@@ -63,10 +63,16 @@ namespace ClassGame {
                     resetGame();
                     game->_gameOptions.gameNumber = 1;
                     game->_gameOptions.currentTurnNo = 0;
+                    game->_gameOptions.AIPlaying = false;
                    // game->startGame();
                 }
                 ImGui::SetCursorPos(ImVec2 (225, 540));
                 ImGui::Button("Player to AI");
+                if(ImGui::IsItemClicked()){
+                    game->_gameOptions.AIPlaying = true;
+                    game->_gameOptions.gameNumber = 3;
+                    resetGame();
+                }
                 ImGui::SetCursorPos(ImVec2 (335, 540));
                 ImGui::Button("Undo");
                 if(ImGui::IsItemClicked()){
@@ -78,6 +84,7 @@ namespace ClassGame {
                     resetGame();
                     game->_gameOptions.gameNumber = 0;
                     game->_gameOptions.currentTurnNo = 1;
+                    game->_gameOptions.AIPlaying = false;
                 }
                 ImGui::SetCursorPos(ImVec2 (25, 540));
                 ImGui::Button("reset");
