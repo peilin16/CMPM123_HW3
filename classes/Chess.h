@@ -16,17 +16,7 @@ enum ChessPiece {
     movePoint,
     cut
 };
-struct CurrentState{
-    std::string  FENstring;
-    bool w_K_Castling;
-    bool w_Q_Castling;
-    bool b_Q_Castling;
-    bool b_K_Castling;
-    bool  EnPassant[2][8]; // first row white second row black
-    std::string	move;
-    int half_clock_move;
-    int clock_move;
-};
+
 //
 // the main game class
 //
@@ -38,7 +28,7 @@ public:
 
     // set up the board
     void        setUpBoard() override;
-
+    int         getWinner();
     Player*     checkForWinner() override;
     bool        checkForDraw() override;
     std::string initialStateString() override;
@@ -64,10 +54,22 @@ private:
     void        setFEN(std::string str){
         _currentState.FENstring = str;
     }
-    
+    struct CurrentState{
+        std::string  FENstring;
+        bool w_K_Castling;
+        bool w_Q_Castling;
+        bool b_Q_Castling;
+        bool b_K_Castling;
+        bool  EnPassant[2][8]; // first row white second row black
+        std::string	move;
+        int current_num;
+        int half_clock_move;
+        int clock_move;
+        short _capturer;
+    };
     bool      check_the_square_will_be_capture(int y, int x,int playerNumber);
     void       FENtoBoard(bool is_first = false);
-    
+    void        saveRecord();
     //void        setUpChessProtect(std::string state , bool init = false);
     void        cpatureBit(Bit& bit,int playerNum);
     bit_position getHolerPos(BitHolder& src);
@@ -77,13 +79,13 @@ private:
     bool        check_square(int x, int y, int player);//if square exit bit
 
     //AI EXtend
-    void        bitMove(bit_position from,bit_position to);
+    void        moveBit(bit_position from,bit_position to);
+    std::vector<CurrentState>   _record;      
     ChessAI         AI_player;
-    
-
     CurrentState    _currentState;
     ChessSquare      _grid[8][8];
     ChessSquare      player1_capture_grid[4][4];
     ChessSquare      player2_capture_grid[4][4];
+    int             _chessWinner;
 };
 

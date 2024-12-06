@@ -31,15 +31,20 @@ void ChessAI::init_board(){
     }
     _AIopinion._own.clear();
     _OpponentOpinion._own.clear();
+    _record.clear();
     //_OpponentOpinion._currentNum = 0;
     setUpChess("RNBQKBNRPPPPPPPP00000000000000000000000000000000pppppppprnbqkbnr");
+    saveTurn();
 }
 //set up the chess
-void ChessAI::setUpChess(std::string state){
+void ChessAI::
+
+setUpChess(std::string state){
     //RNBQKBNRPPPPPPPP00000000000000000000000000000000ppppppppprnbkqbnr
     unsigned int y = 0;
     unsigned int x = 0;
-    
+    _AIopinion._own.clear();
+    _OpponentOpinion._own.clear();
     for(unsigned int i = 0 ; i < state.size(); i ++){
         if(x >=  8){
             x = 0;
@@ -62,6 +67,30 @@ void ChessAI::setUpChess(std::string state){
         _board[y][x] = state[i];
         x++;
     }
+}
+void ChessAI::saveTurn(){
+    std::string record = "";
+    for(int y = 0; y < 8; y ++){
+        for(int x = 0; x < 8; x ++){
+            record +=_board[y][x];
+        }
+    }
+    turn t;
+    t._AI = _AIopinion;
+    t._Opponent = _OpponentOpinion;
+    t._boardStr = record;
+    _record.push_back(t);
+}
+void ChessAI::undo(){
+    if(_record.size() <= 0)
+        return;
+    _record.pop_back();
+    turn t = _record.back();
+    
+    _AIopinion = t._AI;
+    _OpponentOpinion = t._Opponent;
+
+    setUpChess(t._boardStr);
 }
 void ChessAI::SetAICastle(bool Q_Castling,bool K_Castling){
 
@@ -255,12 +284,12 @@ int ChessAI::potentialScore(char piece,int y, int x){
 }
 
 //
-void ChessAI::setAnotherPlayerMove(bit_position from_pos, bit_position to_pos ){
+void ChessAI::setOpponentMove(bit_position from_pos, bit_position to_pos ){
     char tag = _board[from_pos.y_position][from_pos.x_position];
     
    bitMovedFromTo(tag,from_pos, to_pos,_OpponentOpinion, _AIopinion,_board );
    updateScore(&_OpponentOpinion, &_AIopinion,_board);
-
+//saveTurn();
 }
 //AI move function
 void ChessAI::AI_Move(bit_position& from_pos,bit_position& to_pos){
@@ -269,19 +298,17 @@ void ChessAI::AI_Move(bit_position& from_pos,bit_position& to_pos){
     Board_opinion currentOpponentOpinion = _OpponentOpinion;
     //std::list<bit> bit_own;
     int step = -99999999;
-
     int currentBestScore = -99999999;//evalevaluateBoard(_opinion._board, _opinion._AINum);// the best score
     bit moveBit;
-    //int moveScore = 0;
-    char p; // best move bit
+    
+
     char temp[8][8];
-    std::list<Board_opinion>::iterator s;
+    //std::list<Board_opinion>::iterator s;
 
     for (auto& piece : _AIopinion._own){
-        if(piece._is_capture)
-            continue;
-        if(piece._tag == 'n')
-            int i = 0;
+        /*if(piece._is_capture)
+            continue;*/
+        
         //moveBit = piece;
         std::queue<bit_position> moves = bit_move(piece, piece._pos,_board, _AIopinion,_AIopinion._num);// 得到移动集合
         while (!moves.empty())
@@ -297,13 +324,10 @@ void ChessAI::AI_Move(bit_position& from_pos,bit_position& to_pos){
             //int score = MiniMax();
             updateScore(&currentAIOpinion,&currentOpponentOpinion,temp);
             if(currentAIOpinion._score > step){
-                if(current == 1)
-                    current = 0;
-                else
-                    current = 1;
+                
                 //currentBestScore = currentAIOpinion._score;
                 step = _AIopinion._score;
-                miniMax(&currentOpponentOpinion,&currentAIOpinion,temp,3 , current);
+                negamax(&currentOpponentOpinion,&currentAIOpinion,temp, 7, -999999, -999999);
                 
                 if(currentAIOpinion._score > currentBestScore){//如果移动此步比当前分数更大 则保存这一步
                     currentBestScore = currentAIOpinion._score;
@@ -320,9 +344,9 @@ void ChessAI::AI_Move(bit_position& from_pos,bit_position& to_pos){
 
     }
     from_pos = moveBit._pos;
-    
     _AIopinion = currentAIOpinion;
     bitMovedFromTo(moveBit._tag, moveBit._pos, to_pos, _AIopinion, _OpponentOpinion ,_board );
+    saveTurn();
     //return aiMove;
     
 }
@@ -331,14 +355,83 @@ void ChessAI::updateScore(ChessAI::Board_opinion *player_opinion, ChessAI::Board
     int player_score = evaluateBoard(board, player_opinion->_num);
     int opponent_score = evaluateBoard(board, opponent_opinion->_num);
     
-    player_opinion->_score = player_score;
-    opponent_opinion->_score = opponent_score ;
+    player_opinion->_score = player_score + 17000 - opponent_score;
+    opponent_opinion->_score = opponent_score + 17000 - player_score;
 
 }
+
+
+void ChessAI::negamax( ChessAI::Board_opinion *player_opinion, ChessAI::Board_opinion *opponent_opinion, 
+      char (&board)[8][8], int depth, int alpha, int beta) {
+    // Base case - evaluate position
+    if (depth <= 0) {
+        updateScore(player_opinion, opponent_opinion, board);
+        return;
+    }
+
+    Board_opinion currentPlayerOpinion = *player_opinion;
+    Board_opinion currentOpponentOpinion = *opponent_opinion;
+    Board_opinion bestPlayerOpinion = *player_opinion;
+    Board_opinion bestOpponentOpinion = *opponent_opinion;
+    
+    int bestScore = -999999;
+    char temp[8][8];
+
+    // Generate and try all possible moves
+    for (auto& piece : player_opinion->_own) {
+        //if (piece._is_capture) continue;  // Skip captured pieces
+        
+        std::queue<bit_position> moves = bit_move(piece, piece._pos, board, currentPlayerOpinion, player_opinion->_num);
+        
+        while (!moves.empty()) {
+            resetBoard(board, temp);
+            bit_position move = moves.front();
+            moves.pop();
+
+            // Make move
+            bitMovedFromTo(piece._tag, piece._pos, move, currentPlayerOpinion, currentOpponentOpinion, temp);
+            updateScore(&currentPlayerOpinion, &currentOpponentOpinion, temp);
+
+            // Recursively evaluate position after move with negated alpha/beta window
+            negamax(&currentOpponentOpinion, &currentPlayerOpinion, temp, depth - 1,  -beta, -alpha);
+            
+            // Negamax logic: negate the opponent's score
+            int score = -currentOpponentOpinion._score;
+            
+            // Update best move if we found a better score
+            if (score > bestScore) {
+                bestScore = score;
+                bestPlayerOpinion = currentPlayerOpinion;
+                bestOpponentOpinion = currentOpponentOpinion;
+            }
+
+            // Update alpha value
+            alpha = std::max(alpha, score);
+
+            // Restore board state
+            currentPlayerOpinion = *player_opinion;
+            currentOpponentOpinion = *opponent_opinion;
+
+            // Alpha-beta pruning
+            if (alpha >= beta) {
+                goto pruned;  // Break out of both loops
+            }
+        }
+    }
+
+pruned:
+    // Return the best move found
+    *player_opinion = bestPlayerOpinion;
+    *opponent_opinion = bestOpponentOpinion;
+    player_opinion->_score = bestScore;
+}
+
+
+/**/
 //MiniMax
-void ChessAI::miniMax( ChessAI::Board_opinion *player_opinion, ChessAI::Board_opinion *opponent_opinion, char  board[8][8], int depth,  int currentNum){
+void ChessAI::miniMax(  ChessAI::Board_opinion *player_opinion, ChessAI::Board_opinion *opponent_opinion,  char  (&board)[8][8],  int depth){
     if(depth <= 0){
-        updateScore(player_opinion,opponent_opinion,board);
+        updateScore(player_opinion ,opponent_opinion,board);
         return;
     }
     
@@ -346,28 +439,22 @@ void ChessAI::miniMax( ChessAI::Board_opinion *player_opinion, ChessAI::Board_op
     Board_opinion currentPlayerOpinion = *player_opinion;
 
     Board_opinion bestPlayerOpinion = *player_opinion;
-    Board_opinion finalOpponentOpinion = *player_opinion;
-    int nextStep = currentNum;
-    if(nextStep == 0)
-        nextStep = 1;
-    else
-        nextStep  = 0;
-         
+    Board_opinion finalOpponentOpinion = *opponent_opinion;
 
+         
     int currentStepScore = player_opinion->_score;
     //int currentBestScore = currentPlayerOpinion._score;//evaluateBoard(_opinion._board, _opinion._AINum);// the best score    
     char temp[8][8];
 
 
     for (auto& piece : player_opinion->_own){
-        if(piece._is_capture)
-            continue;
+        /*if(piece._is_capture)
+            continue;*/
         
-        std::queue<bit_position> moves = bit_move(piece, piece._pos,board, currentPlayerOpinion, currentNum);// 得到移动集合
+        std::queue<bit_position> moves = bit_move(piece, piece._pos,board, currentPlayerOpinion, player_opinion->_num);// 得到移动集合
         while(!moves.empty()){
             //reset path
-            if(piece._tag == 'Q' || piece._tag == 'N' )
-                int i = 0;
+            
             resetBoard(board,temp);
             bit_position move = moves.front();
             moves.pop();
@@ -380,7 +467,7 @@ void ChessAI::miniMax( ChessAI::Board_opinion *player_opinion, ChessAI::Board_op
             if(currentPlayerOpinion._score > currentStepScore){
                 
                 // use minmax to recursion
-                miniMax(&currentOpponentOpinion , &currentPlayerOpinion, temp, depth - 1 , nextStep);
+                miniMax(&currentOpponentOpinion , &currentPlayerOpinion, temp, depth - 1 );
                 
                 if(bestPlayerOpinion._score < currentPlayerOpinion._score){
                     bestPlayerOpinion = currentPlayerOpinion;
@@ -417,21 +504,23 @@ void ChessAI::bitMovedFromTo(char bit,bit_position from,  bit_position to, Chess
     //char piece = temp[form_pos.y_position][form_pos.x_position];
     if(board[to.y_position][to.x_position] != '0')
     {
-        for (auto& piece : opponent_opinion._own){
-            if(piece._pos == to){
-                piece._is_capture = true;
-                break;
+        for (auto it = opponent_opinion._own.begin(); it != opponent_opinion._own.end(); ++it) {
+            if (it->_pos == to) {
+                opponent_opinion._own.erase(it);
+                break; // Exit the loop after removal
             }
         }
     }
 
-
-    if(bit == 'r' || bit == 'R'){
-        if(from.x_position == 0)
-            mover_opinion._Q_Castling = false;
-        else if(from.x_position == 7)
-            mover_opinion._K_Castling = false;
+    if(mover_opinion._Q_Castling || mover_opinion._K_Castling){
+        if(bit == 'r' || bit == 'R'){
+            if(from.x_position == 0)
+                mover_opinion._Q_Castling = false;
+            else if(from.x_position == 7)
+                mover_opinion._K_Castling = false;
+        }
     }
+
 
 
     board[to.y_position][to.x_position] = bit;
@@ -444,50 +533,63 @@ void ChessAI::bitMovedFromTo(char bit,bit_position from,  bit_position to, Chess
         }
     }
     
-    
-    if(!isupper(bit)){
-        for(int i = 0; i < 8; i ++){
-            mover_opinion.EnPassant[i] = false;
-        }
-        if(bit == 'p' && to.y_position == from.y_position - 2)
+    // en passant
+    for(int i = 0; i < 8; i ++){
+        mover_opinion.EnPassant[i] = false;
+    }
+    if(tolower(bit) == 'p' ){
+        if( to.y_position == from.y_position - 2 ||  to.y_position == from.y_position + 2)
             mover_opinion.EnPassant[to.x_position] = true;
     }
+//casting
 
-    if(islower(bit)){
-        if(bit =='k'){
-            if(mover_opinion._K_Castling && from.x_position + 2 == to.x_position){
-                
+    if(bit == 'k' || bit =='K'){
+        if(mover_opinion._K_Castling && to.x_position == from.x_position + 2){
+            bit_position to;
+            if(isupper(bit)){
+                board[0][7] = '0';
+                board[0][5] = 'R';
+                to = bit_position(0,5);
+
+            }else{
                 board[7][7] = '0';
                 board[7][5] = 'r';
-            }else if(mover_opinion._Q_Castling && from.x_position - 2 == to.x_position){
+                to = bit_position(7,5);
+            }
+            for (auto& piece : mover_opinion._own){
+                if('k' == piece._tag && 7 == piece._pos.x_position){
+                    piece._pos = to;
+                    break;
+                }
+            }
+            
+        }else if(mover_opinion._Q_Castling && to.x_position == from.x_position - 2){
+            bit_position to;
+            if(isupper(bit)){
+                board[0][0] = '0';
+                board[0][3] = 'R';
+                to = bit_position(0,3);
+
+            }else{
                 board[7][0] = '0';
                 board[7][3] = 'r';
+                to = bit_position(7,3);
             }
-            mover_opinion._Q_Castling = false;
-            mover_opinion._K_Castling = false;
-        }
-    }else{
-        if(bit =='K'){
-            if(mover_opinion._K_Castling && from.x_position + 2 == to.x_position){
-                
-                board[0][7] = '0';
-                board[0][5] = 'r';
-            }else if(mover_opinion._Q_Castling && from.x_position - 2 == to.x_position){
-                board[0][0] = '0';
-                board[0][3] = 'r';
+            for (auto& piece : mover_opinion._own){
+                if('k' == tolower(piece._tag)  && 0 == piece._pos.x_position){
+                    piece._pos = to;
+                    break;
+                }
             }
-            mover_opinion._Q_Castling = false;
-            mover_opinion._K_Castling = false;
         }
+        mover_opinion._Q_Castling = false;
+        mover_opinion._K_Castling = false;
     }
     
+}
 
-}
-int ChessAI::checkWinner(){
-    return 0;
-}
 //return the movement queue
-std::queue<bit_position> ChessAI::bit_move(bit piece, bit_position pos, char  board[8][8],Board_opinion _opinion,int playerNum){
+std::queue<bit_position> ChessAI::bit_move(bit piece, bit_position pos, char (&board)[8][8],Board_opinion _opinion,int playerNum){
     std::queue<bit_position> moves;
 
     int y = pos.y_position;
@@ -742,22 +844,28 @@ std::queue<bit_position> ChessAI::bit_move(bit piece, bit_position pos, char  bo
             if(board[y - 1][x + 1] == '0' || (piece._playerNum == 1 &&  isupper( board[y - 1][x + 1] )) || (piece._playerNum == 0 &&  islower( board[y - 1][x + 1] )))
                 moves.push(bit_position(y - 1,x + 1));
 
-
-        if(piece._playerNum == 1){
-            if(_opinion._K_Castling && board[7][5] == '0' && board[7][6] == '0'){
-                moves.push(bit_position(y,x + 2));
-            }
-            if(_opinion._Q_Castling && board[7][1]== '0'  && board[7][2]== '0' && board[7][3]== '0' ){
-                moves.push(bit_position(y,x - 2)); 
-            }
-        }else{
-            if(_opinion._K_Castling &&  board[0][5] == '0' &&  board[0][6] == '0'){
-                moves.push(bit_position(y,x + 2));
-            }
-            if(_opinion._Q_Castling &&  board[0][1]== '0'  &&  board[0][2]== '0' && board[0][3]== '0' ){
-                moves.push(bit_position(y,x - 2)); 
+        if((_opinion._K_Castling || _opinion._Q_Castling ) && check_capture(piece, board)){
+            if(piece._playerNum == 1){
+                if(_opinion._K_Castling && board[7][5] == '0' && board[7][6] == '0'){
+                    if(check_capture(bit(piece._tag,bit_position(7,5),piece._playerNum), board) && check_capture(bit(piece._tag,bit_position(7,6),piece._playerNum), board))
+                        moves.push(bit_position(y,x + 2));
+                }
+                if(_opinion._Q_Castling && board[7][1]== '0'  && board[7][2]== '0' && board[7][3]== '0' ){
+                    if(check_capture(bit(piece._tag,bit_position(7,3),piece._playerNum), board) && check_capture(bit(piece._tag,bit_position(7,2),piece._playerNum), board))
+                        moves.push(bit_position(y,x - 2)); 
+                }
+            }else{
+                if(_opinion._K_Castling &&  board[0][5] == '0' &&  board[0][6] == '0'){
+                    if(check_capture(bit(piece._tag,bit_position(0,5),piece._playerNum), board) && check_capture(bit(piece._tag,bit_position(0,6),piece._playerNum), board))
+                        moves.push(bit_position(y,x + 2));
+                }
+                if(_opinion._Q_Castling &&  board[0][1]== '0'  &&  board[0][2]== '0' && board[0][3]== '0' ){
+                    if(check_capture(bit(piece._tag,bit_position(0,2),piece._playerNum), board) && check_capture(bit(piece._tag,bit_position(0,3),piece._playerNum), board))
+                        moves.push(bit_position(y,x - 2)); 
+                }
             }
         }
+        
 
         
         
@@ -817,4 +925,199 @@ std::queue<bit_position> ChessAI::bit_move(bit piece, bit_position pos, char  bo
         }
     } 
     return moves;
+}
+bool ChessAI::check_capture(bit piece ,char (&board)[8][8]){
+    //return false;
+        //check upper
+    int y = piece._pos.y_position;
+    int x = piece._pos.x_position;
+    for(int i = y + 1; i < 8; i ++){
+        if(board[i][x] != '0'){
+            if((piece._playerNum == 1 && islower( board[i][x] ) ) || ( piece._playerNum == 0 &&  isupper(board[i][x] )))
+                break;
+            else{
+                if(tolower(board[i][x]) =='q' || tolower(board[i][x]) =='r' )
+                    return false;
+                else if(i == y + 1 &&tolower(board[i][x]) =='k')
+                    return false;
+                break;
+            }
+                
+        }
+    }
+    //check left
+    for(int i = x - 1; i >= 0; i --){
+        if(board[y][i] != '0'){
+            if((piece._playerNum == 1 && islower( board[y][i]) ) || ( piece._playerNum == 0 &&  isupper(board[y][i] )))
+                break;
+            else{
+                if(tolower(board[y][i]) =='q' || tolower(board[y][i]) =='r' )
+                    return false;
+                else if(i == x + 1 &&tolower(board[y][i]) =='k')
+                    return false;
+                break;
+            }
+                
+        }
+    }
+    //check right
+    for(int i = x + 1; i < 8; i ++){
+        if(board[y][i] != '0'){
+            if((piece._playerNum == 1 && islower( board[y][i]) ) || ( piece._playerNum == 0 &&  isupper(board[y][i] )))
+                break;
+            else{
+                if(tolower(board[y][i]) =='q' || tolower(board[y][i]) =='r' )
+                    return false;
+                else if(i == x + 1 &&tolower(board[y][i]) =='k')
+                    return false;
+                break;
+            }
+                
+        }
+    }
+    //check down
+    for(int i = y - 1; i >=0; i --){
+        if(board[i][x] != '0'){
+            if((piece._playerNum == 1 && islower( board[i][x] ) ) || ( piece._playerNum == 0 &&  isupper(board[i][x] )))
+                break;
+            else{
+                if(tolower(board[i][x]) =='q' || tolower(board[i][x]) =='r' )
+                    return false;
+                else if(i == y + 1 &&tolower(board[i][x]) =='k')
+                    return false;
+                break;
+            }
+                
+        }
+    }
+    //check upper left diagonal
+    for(int i = y + 1; i < 8; i ++){
+        for(int j = x - 1; j >= 0; j --){
+            if(board[i][j] != '0'){
+                if((piece._playerNum == 1 && islower( board[i][j] ) ) || ( piece._playerNum == 0 &&  isupper(board[i][j] )))
+                {   
+                    i =10000;
+                    break;
+                }    
+                else{
+                    if(tolower(board[i][j]) =='q' || tolower(board[i][j]) =='b' )
+                        return false;
+                    else if(i == y + 1 && j == x - 1 && (tolower(board[i][j]) =='k' || tolower(board[i][j]) =='p'  ))
+                        return false;
+                    i = 1000;
+                    break;
+                }
+            }
+        }
+    }
+    //check upper righ diagonal
+    for(int i = y + 1; i < 8; i ++){
+        for(int j = x + 1; j < 8; j ++){
+            if(board[i][j] != '0'){
+                if((piece._playerNum == 1 && islower( board[i][j] ) ) || ( piece._playerNum == 0 &&  isupper(board[i][j] )))
+                {   
+                    i =10000;
+                    break;
+                }    
+                else{
+                    if(tolower(board[i][j]) =='q' || tolower(board[i][j]) =='b' )
+                        return false;
+                    else if(i == y + 1 && j == x - 1 && (tolower(board[i][j]) =='k' || tolower(board[i][j]) =='p'  ))
+                        return false;
+                    i = 1000;
+                    break;
+                }
+            }
+        }
+    }
+    //check down left diagonal
+    for(int i = y - 1; i >=0; i --){
+        for(int j = x - 1; j >= 0; j --){
+            if(board[i][j] != '0'){
+                if((piece._playerNum == 1 && islower( board[i][j] ) ) || ( piece._playerNum == 0 &&  isupper(board[i][j] )))
+                {   
+                    i =-1;
+                    break;
+                }    
+                else{
+                    if(tolower(board[i][j]) =='q' || tolower(board[i][j]) =='b' )
+                        return false;
+                    else if(i == y + 1 && j == x - 1 && (tolower(board[i][j]) =='k' || tolower(board[i][j]) =='p'  ))
+                        return false;
+                    i = -1;
+                    break;
+                }
+            }
+        }
+    }
+    //check down righ diagonal
+    for(int i = y - 1; i >=0; i --){
+        for(int j = x + 1; j < 8; j ++){
+            if(board[i][j] != '0'){
+                if((piece._playerNum == 1 && islower( board[i][j] ) ) || ( piece._playerNum == 0 &&  isupper(board[i][j] )))
+                {   
+                    i =-1;
+                    break;
+                }    
+                else{
+                    if(tolower(board[i][j]) =='q' || tolower(board[i][j]) =='b' )
+                        return false;
+                    else if(i == y + 1 && j == x - 1 && (tolower(board[i][j]) =='k' || tolower(board[i][j]) =='p'  ))
+                        return false;
+                    i = -1;
+                    break;
+                }
+            }
+        }
+    }
+    //check knight
+    int i = x + 1;
+    int j = y + 2;
+    if(i  < 8){
+        if(j< 8)
+            if( tolower(board[j][i] == 'n') && (piece._playerNum == 1 &&  isupper( board[j][i] ) ) || ( piece._playerNum == 0 &&  islower(board[j][i] )))
+                return false;  
+            j = y -2;
+            if(j>= 0)
+                if(tolower(board[j][i] == 'n') && (piece._playerNum == 1 &&  isupper( board[j][i] ) ) || ( piece._playerNum == 0 &&  islower(board[j][i] )))
+                    return false;     
+        }
+        i = x + 2;
+        j = y + 1;
+        if(i< 8)
+        {
+            if(j < 8)
+                if( tolower(board[j][i] == 'n') && (piece._playerNum == 1 &&  isupper( board[j][i] ) ) || ( piece._playerNum == 0 &&  islower(board[j][i] )))
+                   return false;  
+            j = y - 1;
+            if(j >= 0)
+                if( tolower(board[j][i] == 'n') && (piece._playerNum == 1 &&  isupper( board[j][i] ) ) || ( piece._playerNum == 0 &&  islower(board[j][i] )))
+                   return false;  
+        }
+        i = x - 1;
+        j = y + 2;
+        if(i > 0){
+            if(j< 8)
+                if( tolower(board[j][i] == 'n') && (piece._playerNum == 1 &&  isupper( board[j][i] ) ) || ( piece._playerNum == 0 &&  islower(board[j][i] )))
+                    return false;  
+                
+            j = y -2;
+            if(j>= 0)
+                if( tolower(board[j][i] == 'n') && (piece._playerNum == 1 &&  isupper( board[j][i] ) ) || ( piece._playerNum == 0 &&  islower(board[j][i] )))
+                    return false;  
+        }
+            //check_square(x - 1,y ,bit.getOwner()->playerNumber());
+        i = x - 2;
+        j = y + 1;
+        if(i > 0){
+            if(j < 8)
+                if( tolower(board[j][i] == 'n') && (piece._playerNum == 1 &&  isupper( board[j][i] ) ) || ( piece._playerNum == 0 &&  islower(board[j][i] )))
+                    return false;  
+            j = y - 1;
+            if(y - 1 >= 0)
+                if( tolower(board[j][i] == 'n') && (piece._playerNum == 1 &&  isupper( board[j][i] ) ) || ( piece._playerNum == 0 &&  islower(board[j][i] )))
+                    return false;  
+        }
+
+    return true;
 }

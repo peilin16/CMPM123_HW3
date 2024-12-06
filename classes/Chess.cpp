@@ -51,6 +51,7 @@ void Chess::setUpBoard()
     // we want white to be at the bottom of the screen so we need to reverse the board
     //
     SetUpState();
+    _chessWinner = -1;
     char piece[2];
     piece[1] = 0;
     for (int y = 0; y < _gameOptions.rowY; y++) {
@@ -93,6 +94,7 @@ void Chess::setUpBoard()
     //setUpChessProtect("RNBQKBNRPPPPPPPP00000000000000000000000000000000pppppppprnbqkbnr", true);
 }
 void        Chess::SetUpState(){
+    _record.clear();
     _currentState.FENstring = "rnbqkbnr/pppppppp/8/8/8/8/PPPPPPPP/RNBQKBNR w KQkq - 0 1";
     _currentState.w_K_Castling = true;
     _currentState.w_Q_Castling = true;
@@ -100,12 +102,13 @@ void        Chess::SetUpState(){
     _currentState.b_K_Castling = true;
     _currentState.half_clock_move = 0;
     _currentState.clock_move = 0;
-
+    _currentState._capturer = -1;
     for(int y = 0; y < 2; y ++){
         for(int x =0; x < 8; x ++){
             _currentState.EnPassant[y][x] = false;
         }
     }
+    _record.push_back(_currentState);
 }
 //set up the chess as string
 /*
@@ -883,23 +886,24 @@ bool  Chess::check_square(int x, int y, int player){
 void         Chess::undo(){
     if(_winner != nullptr)
         return;
-    if(_turns.size() == 0)
+    if(_record.size() == 0)
         return;
-    else if(_turns.size() == 1){
+    else if(_record.size() == 1){
         setUpBoard();
         //_turns.pop_back();
         return;
     }
-      
-    Turn* last_turn = _turns[_turns.size() - 1];
+    short capturer =  _record[_record.size() - 1]._capturer;
+    CurrentState record = _record[_record.size() - 2];
     clearBoard();
-    setFEN(last_turn->_boardState);
+    //setFEN(record.FENstring);
+    _currentState = record;
     FENtoBoard();
     //setUpChessProtect(last_turn->_boardState);
-    if(_turns.size() > 2){
-        Turn* current_turn = _turns[_turns.size() - 1];
-        if( current_turn->_score != _turns[_turns.size() - 3]->_score){
-            if(_gameOptions.currentTurnNo == 1){
+    if(_record.size() > 2){
+        //CurrentState state = _record[_record.size() - 1];
+        if( capturer != -1){
+            if(capturer == 1){
 
                 for(int y = 3; y >= 0; y --){
                     for(int x= 3; x >= 0; x --){
@@ -922,14 +926,23 @@ void         Chess::undo(){
                 }
             }
         }
-
-        
     }
-    _turns.pop_back();
+    _record.pop_back();
     if(_gameOptions.currentTurnNo == 0)
         _gameOptions.currentTurnNo = 1;
     else if(_gameOptions.currentTurnNo != 0)
         _gameOptions.currentTurnNo = 0;
+    // if ai playing
+    if(_gameOptions.gameNumber == 3 && _gameOptions.currentTurnNo == AI_player.getAINum())
+    {
+        AI_player.undo();
+        //AI_player.undo();
+        undo();
+    }
+        
+}
+void        Chess::saveRecord(){
+
 }
 // capture the bit and move to the rightside board
 void        Chess::cpatureBit(Bit& bit,int playerNum){
@@ -967,66 +980,99 @@ void Chess::bitMovedFromTo(Bit &bit, BitHolder &src, BitHolder &dst) {
     //EN Pawn
     bit_position src_pos = getHolerPos(src);
     bit_position dst_pos = getHolerPos(dst);
-    if(bit.gameTag() == Pawn && !dst.bit()){
+    moveBit(src_pos , dst_pos);
+    if(_gameOptions.AIPlaying && _gameOptions.currentTurnNo == AI_player.getAINum()){
+        AI_player.setOpponentMove(src_pos,dst_pos);
+        updateAI();
+    }
 
-        if(src_pos.x_position != dst_pos.x_position){
-            if(bit.getOwner()->playerNumber() == 0)
+}
+void        Chess::moveBit(bit_position from,bit_position to){
+    Bit* bit = _grid[from.y_position][from.x_position].bit();
+    Bit* dro = _grid[to.y_position][to.x_position].bit();
+    int capture = -1;
+
+    if(bit->gameTag() == Pawn && dro == nullptr){
+
+        if(from.x_position != to.x_position){
+            if(bit->getOwner()->playerNumber() == 0)
             {
-                dro =&_grid[dst_pos.y_position - 1][dst_pos.x_position];
-                _currentState.EnPassant[1][dst_pos.x_position] = false;
+                dro = _grid[to.y_position - 1][to.x_position].bit();
+                _currentState.EnPassant[1][to.x_position] = false;
             }
-            else if(bit.getOwner()->playerNumber() != 0){
-                dro =&_grid[dst_pos.y_position + 1][dst_pos.x_position];
-                _currentState.EnPassant[0][dst_pos.x_position] = false;
+            else if(bit->getOwner()->playerNumber() != 0){
+                dro =_grid[to.y_position + 1][to.x_position].bit();
+                _currentState.EnPassant[0][to.x_position] = false;
             }
                 
         //src.getIndex(src_x_pos,src_y_pos);
         }
     }
-    //Castling move
-    if(bit.gameTag() == King && bit._init_special){
+    
+    if(dro != nullptr){
+            // capture bit
+        capture = _gameOptions.currentTurnNo;
+        
+        if(_turns.size() != 0){
+            _gameOptions.score = _turns[_turns.size() - 2]->_score;
+            if(dro->gameTag() == Pawn)
+                _gameOptions.score += 1;
+            else if(dro ->gameTag() == Rook)
+                _gameOptions.score += 5;
+            else if(dro ->gameTag() == Knight)
+                _gameOptions.score += 4;
+            else if(dro ->gameTag() == Bishop)
+                _gameOptions.score += 3;
+            else if(dro ->gameTag() == Queen)
+                _gameOptions.score += 9;
+            else if(dro ->gameTag() == King){
+                _gameOptions.score += 10;
+                if( _gameOptions.gameNumber != 0)
+                    _winner = bit->getOwner();
+            }
+                
+        }
+        cpatureBit(*dro , dro->getOwner()->playerNumber());
+        if(dro->gameTag() == King && _gameOptions.gameNumber != 0){
+            _chessWinner = _gameOptions.currentTurnNo;
+        }
+        //endTurn();
 
-        if(dst_pos.x_position == src_pos.x_position - 2 || dst_pos.x_position == src_pos.x_position  + 2){
+    }else if(bit->gameTag() == King && bit->_init_special){
+
+        if(to.x_position == from.x_position - 2 || to.x_position == from.x_position  + 2){
             Bit *rook = nullptr;
-            if(bit.getOwner()->playerNumber() == 0){
-                if(dst_pos.x_position == src_pos.x_position + 2){
-                    rook = _grid[0][_gameOptions.rowX - 1].bit();
-                    _grid[0][src_pos.x_position + 1].setBit(rook);
-                    rook->_init_special = false;
-                    rook->setParent(&_grid[0][src_pos.x_position + 1]);
-                    rook->moveTo(_grid[0][src_pos.x_position + 1].getPosition());
-                    _grid[0][_gameOptions.rowX - 1].setBit(nullptr);
-                }else if(dst_pos.x_position == src_pos.x_position - 2){
-                    rook = _grid[0][0].bit();
-                    _grid[0][src_pos.x_position - 1].setBit(rook);
-                    rook->_init_special = false;
-                    rook->setParent(&_grid[0][src_pos.x_position - 1]);
-                    rook->moveTo(_grid[0][src_pos.x_position - 1].getPosition());
-                    _grid[0][0].setBit(nullptr);
+            bit_position r_from;
+            bit_position r_to;
+            if(bit->getOwner()->playerNumber() == 0){
+                if(from.x_position + 2== to.x_position ){
+                    r_from = bit_position(0,7);
+                    r_to = bit_position(0,5);
+                }else if(to.x_position == from.x_position - 2){
+                    r_from = bit_position(0,0);
+                    r_to = bit_position(0,3);
                 }
             }else{
-                if(dst_pos.x_position == src_pos.x_position + 2){
-                    rook = _grid[7][_gameOptions.rowX - 1].bit();
-                    _grid[7][src_pos.x_position + 1].setBit(rook);
-                    rook->_init_special = false;
-                    rook->setParent(&_grid[7][src_pos.x_position + 1]);
-                    rook->moveTo(_grid[7][src_pos.x_position + 1].getPosition());
-                    _grid[7][_gameOptions.rowX - 1].setBit(nullptr);
-                }else if(dst_pos.x_position == src_pos.x_position - 2){
-                    rook = _grid[7][0].bit();
-                    _grid[7][src_pos.x_position - 1].setBit(rook);
-                    rook->_init_special = false;
-                    rook->setParent(&_grid[7][src_pos.x_position - 1]);
-                    rook->moveTo(_grid[7][src_pos.x_position - 1].getPosition());
-                    _grid[7][0].setBit(nullptr);
+                if(from.x_position  + 2== to.x_position){
+                    r_from = bit_position(7,7);
+                    r_to = bit_position(7,3);
+                }else if(from.x_position == to.x_position - 2){
+                    r_from = bit_position(7,0);
+                    r_to = bit_position(7,3);
                 }
             }
+            rook = _grid[r_from.y_position][r_from.x_position].bit();
+            _grid[r_to.y_position][r_to.x_position].setBit(rook);
+            rook->_init_special = false;
+            rook->setParent(&_grid[r_to.y_position][r_to.x_position]);
+            rook->moveTo(_grid[r_to.y_position][r_to.x_position].getPosition());
+            _grid[r_from.y_position][r_from.x_position].setBit(nullptr);
         }
     }
-
-
     // capture bit
+    /*
     if(dro->bit()){
+        capture = _gameOptions.currentTurnNo;
         if(_turns.size() != 0){
             _gameOptions.score = _turns[_turns.size() - 2]->_score;
             if(dro->bit()->gameTag() == Pawn)
@@ -1048,31 +1094,22 @@ void Chess::bitMovedFromTo(Bit &bit, BitHolder &src, BitHolder &dst) {
                 
         }
         cpatureBit(*dro->bit(), dro->bit()->getOwner()->playerNumber());
-    }
-    bit._init_special = false;    
-    dst.setBit(&bit);
-    bit.setParent(&dst);
-    bit.moveTo(dst.getPosition());
-    src.setBit(nullptr);
+    }*/
     
-    endTurn();
+
+    //Castling move
+    bit->_init_special = false;
+    bit->setParent(&_grid[to.y_position][to.x_position]);
+    bit->moveTo(_grid[to.y_position][to.x_position].getPosition());
+    _grid[to.y_position][to.x_position].setBit(bit);
+    _grid[from.y_position][from.x_position].setBit(nullptr);
     if(_gameOptions.currentTurnNo == 0)
         _gameOptions.currentTurnNo = 1;
     else
         _gameOptions.currentTurnNo = 0;
     setFENfromBoard();
-    
-    if(_gameOptions.AIPlaying && _gameOptions.currentTurnNo == AI_player.getAINum()){
-        AI_player.setAnotherPlayerMove(src_pos,dst_pos);
-        updateAI();
-        if(_gameOptions.currentTurnNo == 0)
-            _gameOptions.currentTurnNo = 1;
-        else
-            _gameOptions.currentTurnNo = 0;
-        setFENfromBoard();
-
-    }
-
+    _currentState._capturer = capture;
+    _record.push_back(_currentState);
 }
 // clear the highline and movepoint
 void  Chess::clearBoardHighlights(){
@@ -1117,11 +1154,11 @@ void Chess::stopGame()
 {
     _gameOptions.gameNumber = -1;
 }
-
-Player* Chess::checkForWinner()
-{
-    
-    return _winner;
+Player*     Chess::checkForWinner(){
+    return nullptr;
+}
+int         Chess::getWinner(){
+    return _chessWinner;
 }
 
 bool Chess::checkForDraw()
@@ -1209,49 +1246,11 @@ void Chess::setStateString(const std::string &s)
 void Chess::updateAI() 
 {
 
-
     bit_position from_pos;
     bit_position to_pos;
     AI_player.AI_Move(from_pos,to_pos);
-    bitMove(from_pos,to_pos);
-    /*
-    */
+    moveBit(from_pos,to_pos);
 
-                
+
 }
 
-void        Chess::bitMove(bit_position from,bit_position to){
-    Bit* move = _grid[from.y_position][from.x_position].bit();
-
-
-    if(_grid[to.y_position][to.x_position].bit()){
-            // capture bit
-        Bit *dro = _grid[to.y_position][to.x_position].bit();
-        if(_turns.size() != 0){
-            _gameOptions.score = _turns[_turns.size() - 2]->_score;
-            if(dro->gameTag() == Pawn)
-                _gameOptions.score += 1;
-            else if(dro ->gameTag() == Rook)
-                _gameOptions.score += 5;
-            else if(dro ->gameTag() == Knight)
-                _gameOptions.score += 4;
-            else if(dro ->gameTag() == Bishop)
-                _gameOptions.score += 3;
-            else if(dro ->gameTag() == Queen)
-                _gameOptions.score += 9;
-            else if(dro ->gameTag() == King){
-                _gameOptions.score += 10;
-                if( _gameOptions.gameNumber != 0)
-                    _winner = move->getOwner();
-            }
-                
-        }
-        cpatureBit(*dro , dro->getOwner()->playerNumber());
-        
-    }
-    _grid[to.y_position][to.x_position].setBit(move);
-    move->_init_special = false;
-    move->setParent(&_grid[to.y_position][to.x_position]);
-    move->moveTo(_grid[to.y_position][to.x_position].getPosition());
-    _grid[to.y_position][to.x_position].setBit(move);
-}
