@@ -96,6 +96,7 @@ namespace ClassGame {
                 }
                 ImGui::Text(game->getFENstring().c_str());
                 ImGui::SetCursorPos(ImVec2 (55, 570));
+                EndOfTurn() ;
                 ImGui::End();
         }
 
@@ -105,11 +106,11 @@ namespace ClassGame {
         //
         void EndOfTurn() 
         {
-            Player *winner = game->checkForWinner();
-            if (winner)
+            int winnerNum = game->getWinner();
+            if (winnerNum != -1)
             {
                 gameOver = true;
-                gameWinner = winner->playerNumber();
+                gameWinner = winnerNum;
             }
             if (game->checkForDraw()) {
                 gameOver = true;
